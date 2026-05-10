@@ -1,0 +1,88 @@
+services:
+
+  postgres:
+    image: postgres:15-alpine
+
+    container_name: gmpp-postgres
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gmpp_db}
+
+      POSTGRES_USER: ${POSTGRES_USER:-gmpp_user}
+
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gmpp_password}
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gmpp_user} -d ${POSTGRES_DB:-gmpp_db}"]
+
+    networks:
+      - gmpp-network
+
+
+  backend:
+    build: ./backend
+
+    container_name: gmpp-backend
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-gmpp_db}
+
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-gmpp_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-gmpp_password}
+
+      JWT_SECRET: ${JWT_SECRET}
+
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+
+      GMPP_ALERT_EMAIL_ENABLED: ${GMPP_ALERT_EMAIL_ENABLED:-false}
+      GMPP_NOTIFICATION_EMAIL_ENABLED: ${GMPP_NOTIFICATION_EMAIL_ENABLED:-false}
+
+    ports:
+      - "8080:8080"
+
+    volumes:
+      - uploads_data:/app/uploads
+
+    networks:
+      - gmpp-network
+
+
+  frontend:
+    build: ./frontend
+
+    container_name: gmpp-frontend
+
+    depends_on:
+      - backend
+
+    ports:
+      - "80:80"
+
+    networks:
+      - gmpp-network
+
+
+volumes:
+  postgres_data:
+
+  uploads_data:
+
+
+networks:
+  gmpp-network:
+    driver: bridge
